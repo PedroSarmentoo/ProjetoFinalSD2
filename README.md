@@ -68,7 +68,7 @@ python -m unittest discover -s tests -v
 | Arquivo | O que cobre |
 |---|---|
 | `tests/test_protocolo.py` | Framing (mensagem partida, várias num `recv`, UTF-8 cortado), limites, erros e regras de nome/`@bot` (#4) |
-| `tests/test_servidor.py` | Handshake, nomes duplicados/reservados, prazo do HELLO, entrada/saída/queda, expulsão, 30 clientes simultâneos (#5, #6) |
+| `tests/test_servidor.py` | Handshake, nomes, entrada/saída/queda, expulsão, 30 clientes simultâneos, sala/privado, percurso completo do `@bot`, conversa continuando durante a consulta, tempo limite, queda do bot com perguntas pendentes (#5–#8) |
 
 ## Como trabalhamos
 

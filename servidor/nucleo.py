@@ -1,8 +1,8 @@
 """Núcleo de rede do servidor.
 
-Responsável: Pedro — issues #5 (aceitação, thread por cliente, identificação)
-e #6 (sincronização). Roteamento (#7), desconexões completas (#8) e TLS (#20)
-entram nos pontos marcados com "→ #N".
+Responsável: Pedro — issues #5 (aceitação, thread por cliente, identificação),
+#6 (sincronização), #7 (roteamento) e #8 (desconexões e tempo limite do bot).
+O TLS (#20) entra no ponto marcado com "→ #20".
 
 Contrato com a GUI (Bruna):
     fila = queue.Queue()
@@ -16,7 +16,10 @@ Modelo de concorrência
 ----------------------
 * 1 thread de aceitação por porta (5000 e, se houver TLS, 5001).
 * 1 thread por cliente conectado, que lê as mensagens dele em laço.
-* Estado compartilhado (self._clientes, self._bot) protegido por self._lock.
+* Estado compartilhado (self._clientes, self._bot, self._pendentes)
+  protegido por self._lock.
+* 1 temporizador (threading.Timer) por pergunta pendente ao bot, que expira
+  em TIMEOUT_BOT_SERVIDOR segundos (PROTOCOLO.md §5.5).
 * Cada conexão tem o próprio lock de envio (Conexao._lock_envio): várias
   threads podem mandar mensagens ao mesmo cliente, e sem esse lock os bytes
   de duas mensagens poderiam se intercalar no socket.
@@ -36,6 +39,7 @@ import socket
 import ssl
 import threading
 import time
+from dataclasses import dataclass
 
 from common import config, eventos
 from common import protocolo as p
@@ -84,21 +88,36 @@ class Conexao:
             pass
 
 
+@dataclass
+class Pendente:
+    """Pergunta ao bot aguardando resposta. Chave na tabela: o `ref`
+    (= id da MSG original do usuário)."""
+    chave_usuario: str                  # nome.lower() do solicitante
+    nome_usuario: str
+    criado: float
+    timer: threading.Timer
+
+
 class ServidorChat:
     def __init__(self, fila_eventos: queue.Queue, host: str = config.HOST,
                  porta: int = config.PORTA, porta_tls: int | None = config.PORTA_TLS,
                  contexto_tls: ssl.SSLContext | None = None,
-                 timeout_hello: float = config.TIMEOUT_HELLO):
+                 timeout_hello: float = config.TIMEOUT_HELLO,
+                 timeout_bot: float = config.TIMEOUT_BOT_SERVIDOR,
+                 max_pendentes: int = config.MAX_PENDENTES_POR_USUARIO):
         self.fila_eventos = fila_eventos
         self.host = host
         self.porta = porta
         self.porta_tls = porta_tls
         self.contexto_tls = contexto_tls
         self.timeout_hello = timeout_hello
+        self.timeout_bot = timeout_bot
+        self.max_pendentes = max_pendentes
 
-        self._lock = threading.Lock()                 # protege _clientes e _bot
+        self._lock = threading.Lock()                 # protege _clientes, _bot e _pendentes
         self._clientes: dict[str, Conexao] = {}       # humanos, chave = nome.lower()
         self._bot: Conexao | None = None
+        self._pendentes: dict[str, Pendente] = {}     # ref -> pergunta aguardando o bot
         self._escutas: list[socket.socket] = []
         self._rodando = False
         self.portas_abertas: dict[str, int] = {}      # canal -> porta real (útil com porta 0 nos testes)
@@ -154,6 +173,9 @@ class ServidorChat:
                 pass
         with self._lock:
             todas = list(self._clientes.values()) + ([self._bot] if self._bot else [])
+            for pend in self._pendentes.values():
+                pend.timer.cancel()
+            self._pendentes.clear()
         for c in todas:
             c.motivo_saida = "SERVER_SHUTDOWN"
             c.enviar(p.novo_envelope(p.BYE, p.NOME_SERVIDOR, c.nome, "Servidor encerrado",
@@ -304,10 +326,131 @@ class ServidorChat:
         return self._rotear(conexao, env)
 
     def _rotear(self, conexao: Conexao, env: dict) -> bool:
-        """→ #7: sala, privado, @bot e respostas do bot."""
-        self._enviar_erro(conexao, "UNKNOWN_TYPE",
-                          f"roteamento de {env['type']} ainda não implementado (issue #7)", ref=env["id"])
+        """Roteamento (PROTOCOLO.md §5). Humanos só enviam MSG; o bot só
+        envia BOT_RESP/BOT_ERR. O resto vem apenas do servidor."""
+        tipo = env["type"]
+        if conexao.papel == "human" and tipo == p.MSG:
+            self._rotear_msg(conexao, env)
+        elif conexao.papel == "bot" and tipo in (p.BOT_RESP, p.BOT_ERR):
+            self._resposta_do_bot(env)
+        else:
+            self._enviar_erro(conexao, "BAD_MESSAGE",
+                              f"{tipo} não pode ser enviado por um participante '{conexao.papel}'",
+                              ref=env["id"])
         return True
+
+    def _rotear_msg(self, conexao: Conexao, env: dict) -> None:
+        pergunta = p.extrair_pergunta_bot(env["content"])
+        if pergunta is not None:                                    # §5.3 — vai para o bot, não para a sala
+            self._pergunta_ao_bot(conexao, env, pergunta)
+        elif env["to"] == p.TODOS:                                  # §5.1 — sala
+            self._difundir(env, excluir=conexao)
+        else:                                                       # §5.2 — privada
+            with self._lock:
+                destino = self._clientes.get(env["to"].lower())
+            if destino is None:
+                dica = " — para falar com o bot, comece a mensagem com @bot" \
+                    if env["to"].lower() == p.NOME_BOT else ""
+                self._enviar_erro(conexao, "USER_NOT_FOUND", f"{env['to']} não está online{dica}",
+                                  ref=env["id"])
+            else:
+                destino.enviar(env)
+
+    # ---------------------------------------------------------------- bot
+    def _pergunta_ao_bot(self, conexao: Conexao, env: dict, pergunta: str) -> None:
+        ref = env["id"]
+        if not pergunta:
+            self._enviar_erro(conexao, "BAD_MESSAGE", "escreva a pergunta depois de @bot", ref=ref)
+            return
+
+        with self._lock:
+            bot = self._bot
+            em_aberto = sum(1 for x in self._pendentes.values() if x.chave_usuario == conexao.chave)
+            problema = None
+            if bot is None:
+                problema = "BOT_OFFLINE"
+            elif ref in self._pendentes:
+                problema = "BAD_MESSAGE"
+            elif em_aberto >= self.max_pendentes:
+                problema = "BOT_BUSY"
+            else:
+                timer = threading.Timer(self.timeout_bot, self._expirar, args=(ref,))
+                timer.daemon = True
+                self._pendentes[ref] = Pendente(conexao.chave, conexao.nome, time.time(), timer)
+                timer.start()
+
+        if problema == "BOT_OFFLINE":
+            self._bot_falhou(conexao, ref, "BOT_OFFLINE", "O bot não está conectado no momento.")
+            return
+        if problema == "BAD_MESSAGE":
+            self._enviar_erro(conexao, "BAD_MESSAGE", "id de mensagem repetido", ref=ref)
+            return
+        if problema == "BOT_BUSY":
+            self._enviar_erro(conexao, "BOT_BUSY",
+                              f"você já tem {self.max_pendentes} perguntas aguardando o bot", ref=ref)
+            return
+
+        req = p.novo_envelope(p.BOT_REQ, p.NOME_SERVIDOR, p.NOME_BOT, pergunta,
+                              ref=ref, on_behalf_of=conexao.nome)
+        self._publicar(eventos.MensagemTrafegada(req))
+        self._evento("bot", f"{conexao.nome} perguntou ao bot (#{ref[:8]})")
+        self._publicar_status()
+        if not bot.enviar(req):
+            # O bot caiu entre a checagem e o envio: a thread dele fará a limpeza,
+            # mas este pedido já pode ser respondido agora.
+            if self._retirar_pendente(ref):
+                self._bot_falhou(conexao, ref, "BOT_OFFLINE", "O bot desconectou.")
+
+    def _resposta_do_bot(self, env: dict) -> None:
+        """BOT_RESP/BOT_ERR: só repassa se o ref estiver pendente e o
+        destinatário for o mesmo usuário que perguntou (§5.4)."""
+        ref = env["ref"]
+        with self._lock:
+            pend = self._pendentes.get(ref)
+            if pend is None or env["to"].lower() != pend.chave_usuario:
+                pend = None
+            else:
+                del self._pendentes[ref]
+                pend.timer.cancel()
+            destino = self._clientes.get(pend.chave_usuario) if pend else None
+
+        if pend is None:
+            self._evento("erro", f"Resposta do bot descartada (#{ref[:8]}): pedido inexistente, "
+                                 "expirado ou destinatário diferente")
+            return
+        demora = time.time() - pend.criado
+        if destino is not None and destino.enviar(env):
+            nivel, texto = ("bot", "respondeu") if env["type"] == p.BOT_RESP else ("erro", f"falhou ({env['code']})")
+            self._evento(nivel, f"Bot {texto} para {pend.nome_usuario} (#{ref[:8]}) em {demora:.1f} s")
+        else:
+            self._evento("erro", f"{pend.nome_usuario} saiu antes da resposta do bot (#{ref[:8]})")
+        self._publicar_status()
+
+    def _expirar(self, ref: str) -> None:
+        """Chamado pelo Timer: o bot não respondeu a tempo (§5.5)."""
+        with self._lock:
+            pend = self._pendentes.pop(ref, None)
+            destino = self._clientes.get(pend.chave_usuario) if pend else None
+        if pend is None:
+            return                                  # já respondido
+        self._evento("erro", f"Bot não respondeu {pend.nome_usuario} em {self.timeout_bot:g} s (#{ref[:8]})")
+        if destino is not None:
+            self._bot_falhou(destino, ref, "BOT_TIMEOUT",
+                             f"O bot não respondeu em {self.timeout_bot:g} s. Tente novamente.")
+        self._publicar_status()
+
+    def _retirar_pendente(self, ref: str) -> Pendente | None:
+        with self._lock:
+            pend = self._pendentes.pop(ref, None)
+        if pend:
+            pend.timer.cancel()
+        return pend
+
+    def _bot_falhou(self, destino: Conexao, ref: str, code: str, texto: str) -> None:
+        """BOT_ERR gerado pelo próprio servidor (bot ausente, caiu ou não respondeu)."""
+        erro = p.novo_envelope(p.BOT_ERR, p.NOME_SERVIDOR, destino.nome, texto, ref=ref, code=code)
+        self._publicar(eventos.MensagemTrafegada(erro))
+        destino.enviar(erro)
 
     # ================================================================ saída
     def _remover(self, conexao: Conexao) -> None:
@@ -316,14 +459,31 @@ class ServidorChat:
         conexao.fechar()
         if conexao.nome is None:
             return                                      # nunca chegou a se registrar
+        afetados: list[tuple[str, Conexao]] = []        # (ref, usuário) a avisar se o bot caiu
         with self._lock:
             if conexao.papel == "bot" and self._bot is conexao:
                 self._bot = None
+                refs = list(self._pendentes)            # todas as perguntas ficam sem resposta
             elif self._clientes.get(conexao.chave) is conexao:
                 del self._clientes[conexao.chave]
+                refs = [r for r, x in self._pendentes.items() if x.chave_usuario == conexao.chave]
             else:
                 return
-            # → #8: descartar perguntas pendentes deste usuário / avisar pendentes se for o bot.
+            for ref in refs:
+                pend = self._pendentes.pop(ref)
+                pend.timer.cancel()
+                usuario = self._clientes.get(pend.chave_usuario)
+                if conexao.papel == "bot" and usuario is not None:
+                    afetados.append((ref, usuario))
+
+        if conexao.papel == "bot":
+            for ref, usuario in afetados:
+                self._bot_falhou(usuario, ref, "BOT_OFFLINE",
+                                 "O bot desconectou antes de responder. Tente novamente.")
+            if refs:
+                self._evento("erro", f"Bot caiu com {len(refs)} pergunta(s) pendente(s)")
+        elif refs:
+            self._evento("leave", f"{len(refs)} pergunta(s) de {conexao.nome} ao bot descartada(s)")
 
         motivo = conexao.motivo_saida
         self._publicar(eventos.ParticipanteSaiu(conexao.nome, motivo))
@@ -364,6 +524,7 @@ class ServidorChat:
 
     def _publicar_status(self) -> None:
         with self._lock:
-            status = eventos.StatusServidor(conectados=len(self._clientes), pendentes_bot=0,
+            status = eventos.StatusServidor(conectados=len(self._clientes),
+                                            pendentes_bot=len(self._pendentes),
                                             bot_online=self._bot is not None)
         self._publicar(status)
