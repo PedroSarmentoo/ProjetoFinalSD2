@@ -14,6 +14,7 @@ Configuração:
 Comandos no terminal:
   /usuario <nome>   troca o usuário (cada um tem o próprio histórico)
   /historico        mostra o histórico do usuário atual
+  /modelos          lista os modelos disponíveis para a sua chave
   /sair             encerra
 """
 
@@ -26,7 +27,7 @@ from collections import deque
 from pathlib import Path
 
 URL_PADRAO = "https://api.groq.com/openai/v1/chat/completions"
-MODELO_PADRAO = "llama-3.3-70b-versatile"
+MODELO_PADRAO = "openai/gpt-oss-120b"
 TROCAS_GUARDADAS = 3  # 3 perguntas + 3 respostas por usuário
 PROMPT_SISTEMA = ("Você é o bot de um chat acadêmico. Responda em português, "
                   "de forma curta e direta (no máximo 5 frases).")
@@ -70,14 +71,18 @@ def consultar_llm(historico, pergunta, timeout=15):
     if not chave:
         raise ErroLLM("Bot sem chave de API configurada (LLM_API_KEY).")
 
+    modelo = os.getenv("LLM_MODEL", MODELO_PADRAO)
     corpo = {
-        "model": os.getenv("LLM_MODEL", MODELO_PADRAO),
+        "model": modelo,
         "messages": [{"role": "system", "content": PROMPT_SISTEMA}]
                     + historico
                     + [{"role": "user", "content": pergunta}],
         "temperature": 0.5,
-        "max_tokens": 400,
+        # Modelos de raciocínio (gpt-oss) gastam parte deste limite "pensando".
+        "max_tokens": 1024,
     }
+    if "gpt-oss" in modelo:
+        corpo["reasoning_effort"] = "low"   # responde mais rápido e gasta menos cota
     req = urllib.request.Request(
         os.getenv("LLM_URL", URL_PADRAO),
         data=json.dumps(corpo).encode("utf-8"),
@@ -89,13 +94,20 @@ def consultar_llm(historico, pergunta, timeout=15):
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             dados = json.load(resp)
-        return dados["choices"][0]["message"]["content"].strip()
+        texto = (dados["choices"][0]["message"].get("content") or "").strip()
+        if not texto:
+            raise ErroLLM("A LLM devolveu uma resposta vazia (limite de tokens atingido?).")
+        return texto
     except urllib.error.HTTPError as e:
+        detalhe = _mensagem_de_erro(e)
         if e.code == 401:
             raise ErroLLM("Chave de API inválida.") from e
         if e.code == 429:
             raise ErroLLM("Limite de requisições da LLM atingido. Tente em alguns segundos.") from e
-        raise ErroLLM(f"A LLM respondeu com erro HTTP {e.code}.") from e
+        if e.code == 404:
+            raise ErroLLM(f"Modelo '{corpo['model']}' ou endereço não encontrado ({detalhe}). "
+                          "Use /modelos para ver os modelos disponíveis e ajuste LLM_MODEL no .env.") from e
+        raise ErroLLM(f"A LLM respondeu com erro HTTP {e.code}: {detalhe}") from e
     except TimeoutError as e:
         raise ErroLLM(f"A LLM não respondeu em {timeout} s.") from e
     except urllib.error.URLError as e:
@@ -104,6 +116,30 @@ def consultar_llm(historico, pergunta, timeout=15):
         raise ErroLLM("Sem conexão com o serviço da LLM.") from e
     except (KeyError, IndexError, json.JSONDecodeError) as e:
         raise ErroLLM("Resposta inesperada da LLM.") from e
+
+
+def _mensagem_de_erro(e):
+    """Extrai a mensagem que a API devolve no corpo do erro (formato OpenAI)."""
+    try:
+        return json.loads(e.read().decode("utf-8"))["error"]["message"]
+    except Exception:
+        return "sem detalhes"
+
+
+def listar_modelos(timeout=15):
+    """Lista os IDs de modelo que a chave pode usar (GET .../models)."""
+    url = os.getenv("LLM_URL", URL_PADRAO).rsplit("/chat/completions", 1)[0] + "/models"
+    req = urllib.request.Request(url, headers={
+        "Authorization": f"Bearer {os.getenv('LLM_API_KEY', '')}",
+        "User-Agent": "chat-sd2/1.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            dados = json.load(resp)
+    except urllib.error.HTTPError as e:
+        raise ErroLLM(f"Erro HTTP {e.code} ao listar modelos: {_mensagem_de_erro(e)}") from e
+    except (urllib.error.URLError, TimeoutError) as e:
+        raise ErroLLM("Sem conexão com o serviço da LLM.") from e
+    return sorted(m["id"] for m in dados.get("data", []))
 
 
 # ---------------------------------------------------------------- histórico por usuário
@@ -148,7 +184,7 @@ def main():
     historicos = Historicos()
     usuario = "ana"
     print(f"Modelo: {os.getenv('LLM_MODEL', MODELO_PADRAO)}  |  usuário atual: {usuario}")
-    print("Comandos: /usuario <nome>, /historico, /sair\n")
+    print("Comandos: /usuario <nome>, /historico, /modelos, /sair\n")
     while True:
         try:
             texto = input(f"[{usuario}] > ").strip()
@@ -161,6 +197,14 @@ def main():
         if texto.startswith("/usuario "):
             usuario = texto.split(maxsplit=1)[1]
             print(f"  (agora você é '{usuario}')\n")
+            continue
+        if texto == "/modelos":
+            try:
+                for m in listar_modelos():
+                    print(f"  {m}")
+            except ErroLLM as e:
+                print(f"  (ERRO) {e}")
+            print()
             continue
         if texto == "/historico":
             for m in historicos.obter(usuario):
