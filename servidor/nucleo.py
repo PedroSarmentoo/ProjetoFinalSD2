@@ -513,8 +513,10 @@ class ServidorChat:
         self._difundir(p.novo_envelope(p.USERS, p.NOME_SERVIDOR, p.TODOS, nomes))
 
     def _enviar_erro(self, conexao: Conexao, code: str, texto: str, ref: str | None = None) -> None:
-        conexao.enviar(p.novo_envelope(p.ERROR, p.NOME_SERVIDOR, conexao.nome or "?", texto,
-                                       code=code, ref=ref))
+        erro = p.novo_envelope(p.ERROR, p.NOME_SERVIDOR, conexao.nome or conexao.endereco, texto,
+                               code=code, ref=ref)
+        self._publicar(eventos.MensagemTrafegada(erro))       # erros também aparecem na GUI
+        conexao.enviar(erro)
 
     def _publicar(self, item) -> None:
         self.fila_eventos.put(item)

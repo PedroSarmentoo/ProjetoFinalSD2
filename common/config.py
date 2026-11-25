@@ -8,9 +8,18 @@ nunca vai para o git.
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
+
+
+def _limpar_valor(valor: str) -> str:
+    """'abc  # comentário' -> 'abc';  '"a # b"' -> 'a # b' (entre aspas o # vale)."""
+    valor = valor.strip()
+    if valor[:1] in "\"'" and len(valor) >= 2 and valor[0] in valor[1:]:
+        return valor[1:valor.index(valor[0], 1)]
+    return re.split(r"\s+#", valor, maxsplit=1)[0].strip()
 
 
 def _carregar_env() -> Path | None:
@@ -21,7 +30,7 @@ def _carregar_env() -> Path | None:
                 linha = linha.strip()
                 if linha and not linha.startswith("#") and "=" in linha:
                     chave, valor = linha.split("=", 1)
-                    os.environ.setdefault(chave.strip(), valor.strip().strip('"').strip("'"))
+                    os.environ.setdefault(chave.strip(), _limpar_valor(valor))
             return caminho
     return None
 

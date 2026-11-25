@@ -59,6 +59,8 @@ python -m bot           # 1 terminal
 python -m cliente       # 1 terminal POR usuário (ana, bruno, carla...)
 ```
 
+Teste rápido da LLM real (precisa do `.env`): `python -m bot.llm "minha internet cai toda noite"`
+
 ## Testes
 
 ```bash
@@ -69,6 +71,7 @@ python -m unittest discover -s tests -v
 |---|---|
 | `tests/test_protocolo.py` | Framing (mensagem partida, várias num `recv`, UTF-8 cortado), limites, erros e regras de nome/`@bot` (#4) |
 | `tests/test_servidor.py` | Handshake, nomes, entrada/saída/queda, expulsão, 30 clientes simultâneos, sala/privado, percurso completo do `@bot`, conversa continuando durante a consulta, tempo limite, queda do bot com perguntas pendentes (#5–#8) |
+| `tests/test_bot_llm.py` | Chamada à LLM com API falsa (instrução, histórico, 401/429/404, tempo limite, sem rede, markdown) e histórico por usuário (#15, #16) |
 
 ## Como trabalhamos
 

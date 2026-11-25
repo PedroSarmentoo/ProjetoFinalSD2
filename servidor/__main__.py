@@ -15,7 +15,10 @@ from servidor.nucleo import ServidorChat
 def modo_terminal() -> None:
     fila = queue.Queue()
     servidor = ServidorChat(fila)
-    servidor.iniciar()
+    try:
+        servidor.iniciar()
+    except OSError as e:
+        sys.exit(f"Não foi possível abrir a porta {servidor.porta}: {e}")
     print("Servidor rodando sem interface gráfica. Ctrl+C para encerrar.\n")
     try:
         while True:
@@ -39,15 +42,25 @@ def modo_gui() -> None:
 
     fila = queue.Queue()
     servidor = ServidorChat(fila)
+    root = tk.Tk()
+    janela = JanelaServidor(root, fila, servidor.expulsar)
     try:
-        root = tk.Tk()
-        JanelaServidor(root, fila, servidor.expulsar)
         servidor.iniciar()
-    except NotImplementedError as e:
-        sys.exit(f"[esqueleto] interface do servidor ainda não implementada: {e}\n"
-                 "Use: python -m servidor --sem-gui")
-    root.protocol("WM_DELETE_WINDOW", lambda: (servidor.parar(), root.destroy()))
-    root.mainloop()
+    except OSError as e:
+        root.destroy()
+        sys.exit(f"Não foi possível abrir a porta {servidor.porta}: {e}\n"
+                 "Já existe outro servidor rodando?")
+    janela.definir_portas(servidor.portas_abertas)
+
+    def fechar():
+        servidor.parar()
+        root.destroy()
+
+    root.protocol("WM_DELETE_WINDOW", fechar)
+    try:
+        root.mainloop()
+    except KeyboardInterrupt:
+        fechar()
 
 
 if __name__ == "__main__":
