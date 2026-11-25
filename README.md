@@ -54,7 +54,7 @@ Requer **Python 3.10+** com `tkinter` (já vem no instalador do Windows). Sem de
 3. Em terminais separados, a partir da raiz do projeto:
 
 ```bash
-python -m servidor      # 1 terminal
+python -m servidor      # 1 terminal  (ou: python -m servidor --sem-gui, só no terminal)
 python -m bot           # 1 terminal
 python -m cliente       # 1 terminal POR usuário (ana, bruno, carla...)
 ```
@@ -68,6 +68,7 @@ python -m unittest discover -s tests -v
 | Arquivo | O que cobre |
 |---|---|
 | `tests/test_protocolo.py` | Framing (mensagem partida, várias num `recv`, UTF-8 cortado), limites, erros e regras de nome/`@bot` (#4) |
+| `tests/test_servidor.py` | Handshake, nomes duplicados/reservados, prazo do HELLO, entrada/saída/queda, expulsão, 30 clientes simultâneos (#5, #6) |
 
 ## Como trabalhamos
 
