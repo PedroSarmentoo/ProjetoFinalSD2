@@ -37,15 +37,26 @@ class ErroLLM(Exception):
 
 
 # ---------------------------------------------------------------- .env
-def carregar_env(caminho=Path(__file__).with_name(".env")):
-    """Lê KEY=VALOR do .env sem precisar instalar python-dotenv."""
-    if not caminho.exists():
-        return
-    for linha in caminho.read_text(encoding="utf-8").splitlines():
+def carregar_env():
+    """Lê KEY=VALOR do .env sem precisar instalar python-dotenv.
+
+    Procura ao lado deste script, na pasta de onde foi executado e na pasta
+    acima. Devolve o caminho usado (ou None, se não achou nenhum).
+    """
+    pasta_script = Path(__file__).resolve().parent
+    candidatos = [pasta_script / ".env", Path.cwd() / ".env", pasta_script.parent / ".env"]
+    for caminho in candidatos:
+        if caminho.is_file():
+            break
+    else:
+        return None
+    # utf-8-sig: ignora o BOM que alguns editores do Windows colocam no início
+    for linha in caminho.read_text(encoding="utf-8-sig").splitlines():
         linha = linha.strip()
         if linha and not linha.startswith("#") and "=" in linha:
             chave, valor = linha.split("=", 1)
-            os.environ.setdefault(chave.strip(), valor.strip().strip('"'))
+            os.environ.setdefault(chave.strip(), valor.strip().strip('"').strip("'"))
+    return caminho
 
 
 # ---------------------------------------------------------------- chamada à LLM
@@ -127,7 +138,13 @@ def perguntar(historicos, usuario, pergunta):
 
 # ---------------------------------------------------------------- teste interativo
 def main():
-    carregar_env()
+    env = carregar_env()
+    if env:
+        print(f".env carregado de: {env}")
+    else:
+        print("AVISO: nenhum arquivo .env encontrado (procurei em exemplos/ e na pasta atual).")
+    if not os.getenv("LLM_API_KEY"):
+        print("AVISO: LLM_API_KEY não definida — crie um arquivo .env com LLM_API_KEY=gsk_...")
     historicos = Historicos()
     usuario = "ana"
     print(f"Modelo: {os.getenv('LLM_MODEL', MODELO_PADRAO)}  |  usuário atual: {usuario}")
