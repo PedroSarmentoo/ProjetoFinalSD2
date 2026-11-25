@@ -80,11 +80,19 @@ python -m cliente carla --conectar
 
 Teste rápido só da LLM (sem servidor): `python -m bot.llm "minha internet cai toda noite"`
 
-## Testes
+## Testes e validação
 
 ```bash
-python -m unittest discover -s tests -v
+python validar.py                          # TUDO: ambiente, certificados, testes e cenário real com o Groq
+python validar.py --rapido                 # sem o cenário real (não precisa de internet)
+python -m unittest discover -s tests -v    # só os testes automáticos
 ```
+
+O `validar.py` roda servidor, bot e 3 clientes em processos separados (ana por TLS) e grava em
+`evidencias/`: `validacao_<data>.txt` (resumo), `concorrencia_<data>.txt` (linha do tempo mostrando
+a conversa seguindo durante a consulta à LLM) e `servidor_<data>.log`.
+
+Falha da LLM para o vídeo (#17): `python -m bot --simular-falha timeout` (ou `chave`).
 
 | Arquivo | O que cobre |
 |---|---|

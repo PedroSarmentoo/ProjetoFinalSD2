@@ -1,0 +1,26 @@
+Linha do tempo do cenário real — 25/11/2026 16:04
+Processos separados: servidor, bot (Groq) e 3 clientes (ana TLS, bruno e carla TCP)
+
+   tempo  quem     evento
+   1.53s  sistema  servidor (PID 16100) e bot (PID 360) iniciados
+   1.58s  ana      conectou por TLS :5001 (TLSv1.3 · TLS_AES_256_GCM_SHA384)
+   1.59s  bruno    conectou por TCP :5000
+   1.60s  carla    conectou por TCP :5000
+   2.11s  ana      @bot Minha internet cai toda noite por volta das 22h, o que pode ser?  [#858ef7]
+   2.11s  carla    recebeu de bruno: mensagem 1 enquanto o bot consulta a LLM (1 ms)
+   2.11s  carla    recebeu de bruno: mensagem 2 enquanto o bot consulta a LLM (1 ms)
+   2.11s  carla    recebeu de bruno: mensagem 3 enquanto o bot consulta a LLM (0 ms)
+   2.11s  carla    recebeu de bruno: mensagem 4 enquanto o bot consulta a LLM (0 ms)
+   2.11s  carla    recebeu de bruno: mensagem 5 enquanto o bot consulta a LLM (0 ms)
+   2.90s  ana      BOT_RESP #858ef7: Isso pode ser causado por interferência ou sobrecarga na rede à noite.  
+1. Reinicie o modem/ONU e o roteador, desligando-os por 30 s e liga
+   2.90s  ana      @bot (continuação) Já reiniciei o roteador e continua caindo…  [#bbf94f]
+   3.95s  ana      BOT_RESP #bbf94f: 1. Desligue também o modem/ONU, aguarde 1 min e ligue novamente; observe as luzes de sincronização (geralmente verde ou azul).  
+2. Se algum
+   3.95s  bruno    @bot Qual problema eu relatei antes e em que horário?  [#43f38e]
+   4.54s  bruno    BOT_RESP #43f38e: Desculpe, mas não tenho acesso ao histórico de chamados nem ao horário em que o problema foi registrado. Para obter essas informações, por f
+   7.64s  sistema  bot reiniciado com --simular-falha timeout
+   7.64s  ana      @bot Teste de falha…  [#3ebe17]
+   7.70s  ana      BOT_ERR [LLM_TIMEOUT] A LLM não respondeu em 0.01 s. Tente novamente.
+   7.70s  carla    saiu (BYE)
+   7.70s  bruno    conexão derrubada sem BYE

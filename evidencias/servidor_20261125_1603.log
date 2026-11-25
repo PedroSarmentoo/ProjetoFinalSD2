@@ -1,0 +1,50 @@
+Servidor rodando sem interface gráfica. Ctrl+C para encerrar.
+
+16:04:15 [INFO ] Servidor ouvindo em 127.0.0.1: TCP :5000 (porta 5000), TLS :5001 (porta 5001)
+16:04:16 [BOT  ] bot entrou (127.0.0.1:56655, TCP :5000)
+16:04:17 [INFO ] Sessão TLS com 127.0.0.1:56658: TLSv1.3 · TLS_AES_256_GCM_SHA384
+16:04:17 [JOIN ] ana entrou (127.0.0.1:56658, TLS :5001)
+16:04:17 [JOIN ] bruno entrou (127.0.0.1:56660, TCP :5000)
+16:04:17 [JOIN ] carla entrou (127.0.0.1:56662, TCP :5000)
+16:04:17 [MSG  ] MSG      ana -> *: @bot Minha internet cai toda noite por volta das 22h, o que pode ser?
+16:04:17 [MSG  ] MSG      bruno -> *: mensagem 1 enquanto o bot consulta a LLM
+16:04:17 [MSG  ] BOT_REQ  servidor -> bot: Minha internet cai toda noite por volta das 22h, o que pode ser?
+16:04:17 [BOT  ] ana perguntou ao bot (#858ef7d7)
+16:04:17 [MSG  ] MSG      bruno -> *: mensagem 2 enquanto o bot consulta a LLM
+16:04:17 [MSG  ] MSG      bruno -> *: mensagem 3 enquanto o bot consulta a LLM
+16:04:17 [MSG  ] MSG      bruno -> *: mensagem 4 enquanto o bot consulta a LLM
+16:04:17 [MSG  ] MSG      bruno -> *: mensagem 5 enquanto o bot consulta a LLM
+16:04:18 [MSG  ] BOT_RESP bot -> ana: Isso pode ser causado por interferência ou sobrecarga na rede à noite.  
+1. Reinicie o modem/ONU e o roteador, desligando-os por 30 s e ligando novamente.  
+2. Verifique se todas as luzes do modem estão verdes (alimentação, conexão e internet).  
+3. Confira se os cabos Ethernet estão bem conectados e sem danos.  
+Se o problema continuar, abra um chamado para que um técnico verifique a linha e possíveis interferências.
+16:04:18 [BOT  ] Bot respondeu para ana (#858ef7d7) em 0.8 s
+16:04:18 [MSG  ] MSG      ana -> *: @bot Já reiniciei o roteador e continua caindo. Qual o próximo passo?
+16:04:18 [MSG  ] BOT_REQ  servidor -> bot: Já reiniciei o roteador e continua caindo. Qual o próximo passo?
+16:04:18 [BOT  ] ana perguntou ao bot (#bbf94f12)
+16:04:19 [MSG  ] BOT_RESP bot -> ana: 1. Desligue também o modem/ONU, aguarde 1 min e ligue novamente; observe as luzes de sincronização (geralmente verde ou azul).  
+2. Se alguma luz ficar vermelha ou piscar irregularmente, verifique o cabo de fibra ou coaxial que chega ao modem; reconecte firmemente ou troque por outro cabo se houver.  
+3. Acesse a página de administração do roteador (geralmente 192.168.0.1) e veja se há mensagens de erro ou perda de conexão; se houver, faça um reset de fábrica (pressione o botão de reset 10 s) e configure novamente a rede Wi‑Fi.  
+4. Caso o roteador esteja configurado em um canal Wi‑Fi muito congestionado, altere o canal para 1, 6 ou 11 (ou use a opção “Auto”).  
+
+Se depois desses testes a queda ainda acontecer, abra um chamado para que um técnico verifique a linha externa e possíveis interferências na sua região.
+16:04:19 [BOT  ] Bot respondeu para ana (#bbf94f12) em 1.1 s
+16:04:19 [MSG  ] MSG      bruno -> *: @bot Qual problema eu relatei antes e em que horário?
+16:04:19 [MSG  ] BOT_REQ  servidor -> bot: Qual problema eu relatei antes e em que horário?
+16:04:19 [BOT  ] bruno perguntou ao bot (#43f38ebe)
+16:04:20 [MSG  ] BOT_RESP bot -> bruno: Desculpe, mas não tenho acesso ao histórico de chamados nem ao horário em que o problema foi registrado. Para obter essas informações, por favor abra um chamado com a nossa equipe de suporte.
+16:04:20 [BOT  ] Bot respondeu para bruno (#43f38ebe) em 0.6 s
+16:04:21 [ERRO ] bot perdeu a conexão
+16:04:21 [BOT  ] bot entrou (127.0.0.1:61287, TCP :5000)
+16:04:23 [MSG  ] MSG      ana -> *: @bot Teste de falha: minha internet está lenta
+16:04:23 [MSG  ] BOT_REQ  servidor -> bot: Teste de falha: minha internet está lenta
+16:04:23 [BOT  ] ana perguntou ao bot (#3ebe1725)
+16:04:23 [MSG  ] BOT_ERR  bot -> ana: A LLM não respondeu em 0.01 s. Tente novamente.
+16:04:23 [ERRO ] Bot falhou (LLM_TIMEOUT) para ana (#3ebe1725) em 0.1 s
+16:04:23 [MSG  ] MSG      bruno -> *: o chat continua funcionando depois da falha?
+16:04:23 [MSG  ] BYE      carla -> servidor: 
+16:04:23 [LEAVE] carla saiu
+16:04:23 [ERRO ] bruno perdeu a conexão
+16:04:23 [MSG  ] BYE      ana -> servidor: 
+16:04:23 [LEAVE] ana saiu
