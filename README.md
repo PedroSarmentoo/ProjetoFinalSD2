@@ -27,6 +27,7 @@ O protocolo de mensagens está em **[PROTOCOLO.md](PROTOCOLO.md)**.
 | `PROTOCOLO.md` | Protocolo de aplicação v1 | Pedro | #1 |
 | `common/config.py` | Configuração (lê o `.env`) e limites do protocolo | Pedro | #2 |
 | `common/protocolo.py` | Framing, envelope, validação | Pedro | #4 |
+| `tests/` | Testes automatizados (`unittest`) | Trio | #4, #12 |
 | `common/eventos.py` | Contrato rede → interfaces (fila) | Pedro + Bruna | #9 |
 | `common/tls.py` | Contextos TLS com validação do certificado | Fellipe | #19, #20 |
 | `servidor/nucleo.py` | Aceitação, threads, locks, roteamento, desconexões | Pedro | #5–#9 |
@@ -57,6 +58,16 @@ python -m servidor      # 1 terminal
 python -m bot           # 1 terminal
 python -m cliente       # 1 terminal POR usuário (ana, bruno, carla...)
 ```
+
+## Testes
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+| Arquivo | O que cobre |
+|---|---|
+| `tests/test_protocolo.py` | Framing (mensagem partida, várias num `recv`, UTF-8 cortado), limites, erros e regras de nome/`@bot` (#4) |
 
 ## Como trabalhamos
 
