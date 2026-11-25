@@ -77,6 +77,10 @@ def aplicar_tema(root: tk.Misc) -> ttk.Style:
                foreground=[("readonly", c["texto"])],
                selectbackground=[("readonly", "!focus", c["painel2"]), ("readonly", "focus", c["painel2"])],
                selectforeground=[("readonly", c["texto"])])
+    estilo.configure("Vertical.TScrollbar", background=c["painel2"], troughcolor=c["painel"],
+                     bordercolor=c["painel"], arrowcolor=c["sutil"], lightcolor=c["painel2"],
+                     darkcolor=c["painel2"])
+    estilo.map("Vertical.TScrollbar", background=[("active", c["borda"])])
     root.option_add("*TCombobox*Listbox.background", c["painel2"])
     root.option_add("*TCombobox*Listbox.foreground", c["texto"])
     return estilo

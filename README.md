@@ -35,6 +35,7 @@ O protocolo de mensagens está em **[PROTOCOLO.md](PROTOCOLO.md)**.
 | `cliente/rede.py` | Rede do cliente (thread de recepção) | Pedro | #10 |
 | `cliente/gui.py` | Interface do cliente | Bruna | #14 |
 | `bot/rede.py` | Rede do bot (pool de threads) | Pedro | #11 |
+| `iniciar.py` | Abre servidor, bot e clientes, cada um em seu processo | Trio | — |
 | `bot/llm.py` | Chamada ao Groq e tratamento de falhas | Bruna | #3, #15 |
 | `bot/historico.py` | Histórico curto por usuário | Bruna | #16 |
 | `certs/gerar_certificados.py` | CA de teste + certificado do servidor | Fellipe | #18 |
@@ -49,17 +50,32 @@ com o número da issue.
 
 Requer **Python 3.10+** com `tkinter` (já vem no instalador do Windows). Sem dependências externas.
 
-1. Copie `.env.example` para `.env` e coloque a chave do Groq em `LLM_API_KEY`.
-2. Gere os certificados (uma vez): `python certs/gerar_certificados.py`
-3. Em terminais separados, a partir da raiz do projeto:
+1. Copie `.env.example` para `.env` (na raiz) e coloque a chave do Groq em `LLM_API_KEY`.
+2. Gere os certificados (uma vez): `python certs/gerar_certificados.py` *(issue #18)*
+
+**Tudo de uma vez** — cada componente abre em um processo separado:
 
 ```bash
-python -m servidor      # 1 terminal  (ou: python -m servidor --sem-gui, só no terminal)
-python -m bot           # 1 terminal
-python -m cliente       # 1 terminal POR usuário (ana, bruno, carla...)
+python iniciar.py                 # servidor (GUI) + bot + ana, bruno e carla
+python iniciar.py ana bruno       # escolhe os clientes
+python iniciar.py --tls           # clientes pela porta TLS (5001)
+python iniciar.py --sem-bot       # sem o bot
 ```
 
-Teste rápido da LLM real (precisa do `.env`): `python -m bot.llm "minha internet cai toda noite"`
+Ctrl+C no terminal (ou fechar a janela do servidor) encerra tudo.
+
+**Ou manualmente** — um terminal para CADA comando (no VS Code: botão **+** do painel do terminal).
+Cada comando fica rodando até a janela ser fechada, por isso não dá para rodar todos no mesmo terminal:
+
+```bash
+python -m servidor              # ou: python -m servidor --sem-gui
+python -m bot                   # precisa do servidor já aberto
+python -m cliente ana --conectar
+python -m cliente bruno --conectar
+python -m cliente carla --conectar
+```
+
+Teste rápido só da LLM (sem servidor): `python -m bot.llm "minha internet cai toda noite"`
 
 ## Testes
 
@@ -72,6 +88,8 @@ python -m unittest discover -s tests -v
 | `tests/test_protocolo.py` | Framing (mensagem partida, várias num `recv`, UTF-8 cortado), limites, erros e regras de nome/`@bot` (#4) |
 | `tests/test_servidor.py` | Handshake, nomes, entrada/saída/queda, expulsão, 30 clientes simultâneos, sala/privado, percurso completo do `@bot`, conversa continuando durante a consulta, tempo limite, queda do bot com perguntas pendentes (#5–#8) |
 | `tests/test_bot_llm.py` | Chamada à LLM com API falsa (instrução, histórico, 401/429/404, tempo limite, sem rede, markdown) e histórico por usuário (#15, #16) |
+| `tests/test_cliente.py` | Rede do cliente contra o servidor real: conexão, nome recusado, servidor fora do ar, sala/privado, `@bot` com `ref`, envio sem bloquear durante a consulta, saída, expulsão e queda (#10) |
+| `tests/test_bot_rede.py` | Bot real com LLM substituída: `ref` e usuário corretos, histórico por usuário, consultas em paralelo, falha da LLM vira `BOT_ERR`, erro inesperado não derruba o bot (#11) |
 
 ## Como trabalhamos
 

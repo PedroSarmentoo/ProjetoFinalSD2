@@ -167,10 +167,13 @@ class ServidorChat:
         """Avisa todos com BYE SERVER_SHUTDOWN e fecha os sockets."""
         self._rodando = False
         for escuta in self._escutas:
-            try:
-                escuta.close()
-            except OSError:
-                pass
+            # shutdown acorda a thread presa no accept() (no Linux, só close() não acorda
+            # e a porta continuaria aceitando conexões). No Windows ele falha e o close basta.
+            for fechar in (lambda: escuta.shutdown(socket.SHUT_RDWR), escuta.close):
+                try:
+                    fechar()
+                except OSError:
+                    pass
         with self._lock:
             todas = list(self._clientes.values()) + ([self._bot] if self._bot else [])
             for pend in self._pendentes.values():
@@ -204,6 +207,9 @@ class ServidorChat:
                 sock, (ip, porta) = escuta.accept()
             except OSError:
                 break                                   # socket de escuta fechado em parar()
+            if not self._rodando:                       # chegou durante o encerramento
+                sock.close()
+                break
             endereco = f"{ip}:{porta}"
             threading.Thread(target=self._atender, args=(sock, endereco, canal, tls),
                              name=f"cliente-{endereco}", daemon=True).start()
