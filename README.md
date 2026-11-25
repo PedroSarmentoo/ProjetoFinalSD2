@@ -5,9 +5,6 @@ Chat cliente-servidor sobre **sockets TCP** com **uma thread por cliente**, cana
 **TLS**, interface gráfica no servidor e um **bot de atendimento técnico de provedor
 de internet** que consulta uma LLM real (Groq).
 
-> Estado: **esqueleto** — estrutura e contratos definidos; implementação em andamento.
-> Acompanhe as tarefas nas [issues](../../issues) e no quadro do projeto.
-
 ## Arquitetura
 
 Três componentes em **processos separados**, todos no mesmo PC (`127.0.0.1`):
@@ -108,5 +105,3 @@ Falha da LLM para o vídeo (#17): `python -m bot --simular-falha timeout` (ou `c
 
 - Cada integrante trabalha na **sua branch** (`Pedro`, `Bruna`, `Fellipe`) e leva para a
   `main` por **pull request**. Escreva `fecha #N` na descrição do PR para fechar a issue.
-- **Nunca** faça commit do `.env` nem de arquivos `.key` (o `.gitignore` já bloqueia).
-- Mudanças no `PROTOCOLO.md` só com acordo do trio.

@@ -5,7 +5,7 @@ sockets TCP. **Todos os módulos devem seguir exatamente o que está aqui.**
 Qualquer mudança precisa ser combinada pelo trio, porque altera os três
 componentes ao mesmo tempo.
 
-> Status: **v1 — proposta para aprovação** (issue #1)
+> Status: **v1 — aprovada e implementada** (issue #1)
 
 ---
 
@@ -240,7 +240,7 @@ servidor → ana   {"v":1,"type":"ERROR","id":"s20","from":"servidor","to":"ana"
 | Tempo limite da LLM no bot (`LLM_TIMEOUT`) | 15 s (configurável no `.env`) |
 | Tempo limite do servidor para o bot | 30 s |
 | Perguntas pendentes por usuário | 3 |
-| Histórico da LLM por usuário | 3 trocas (pergunta + resposta) |
+| Histórico da LLM por usuário | 4 trocas (pergunta + resposta) |
 
 O tempo do servidor (30 s) é maior que o do bot (15 s) de propósito: normalmente
 quem avisa a falha é o bot, com o motivo exato. O limite do servidor só atua se
