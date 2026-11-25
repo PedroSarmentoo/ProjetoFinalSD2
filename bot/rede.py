@@ -124,7 +124,8 @@ class BotRede:
             self.log(f"← resposta para {usuario} (#{ref[:8]}) em {time.time() - inicio:.1f} s")
         except llm.ErroLLM as e:
             resposta = p.novo_envelope(p.BOT_ERR, p.NOME_BOT, usuario, str(e), ref=ref, code=e.code)
-            self.log(f"✕ falha para {usuario} (#{ref[:8]}): [{e.code}] {e}")
+            self.log(f"✕ falha para {usuario} (#{ref[:8]}): [{e.code}] {e}"
+                     + (f" — API: {e.detalhe}" if e.detalhe else ""))
         except Exception as e:                               # nunca derrubar o bot por um pedido
             resposta = p.novo_envelope(p.BOT_ERR, p.NOME_BOT, usuario,
                                        "Erro interno do bot ao consultar a LLM.", ref=ref,

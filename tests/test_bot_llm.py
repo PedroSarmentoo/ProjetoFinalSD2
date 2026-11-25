@@ -21,6 +21,7 @@ from common import config
 class ApiFalsa(BaseHTTPRequestHandler):
     """Responde conforme a última mensagem do usuário."""
     recebidos: list = []
+    chamadas_cota_curta = 0
 
     def log_message(self, *args):
         pass
@@ -33,6 +34,12 @@ class ApiFalsa(BaseHTTPRequestHandler):
             return self._json(401, {"error": {"message": "Invalid API Key"}})
         if pergunta == "cota":
             return self._json(429, {"error": {"message": "rate limit"}})
+        if pergunta == "cota_longa":
+            return self._json(429, {"error": {"message": "TPM excedido"}}, {"retry-after": "30"})
+        if pergunta == "cota_curta":
+            ApiFalsa.chamadas_cota_curta += 1
+            if ApiFalsa.chamadas_cota_curta == 1:
+                return self._json(429, {"error": {"message": "TPM excedido"}}, {"retry-after": "1"})
         if pergunta == "modelo":
             return self._json(404, {"error": {"message": "model does not exist"}})
         if pergunta == "lento":
@@ -46,9 +53,11 @@ class ApiFalsa(BaseHTTPRequestHandler):
             texto = f"resposta a '{pergunta}' ({n} mensagens de usuário no contexto)"
         self._json(200, {"choices": [{"message": {"role": "assistant", "content": texto}}]})
 
-    def _json(self, codigo, obj):
+    def _json(self, codigo, obj, cabecalhos=None):
         dados = json.dumps(obj).encode()
         self.send_response(codigo)
+        for k, v in (cabecalhos or {}).items():
+            self.send_header(k, v)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(dados)))
         self.end_headers()
@@ -103,6 +112,24 @@ class TestConsultarLLM(unittest.TestCase):
         e = self.erro("modelo")
         self.assertEqual(e.code, "LLM_UNAVAILABLE")
         self.assertIn("model does not exist", str(e))
+
+    def test_429_com_espera_curta_tenta_de_novo_sozinho(self):
+        inicio = time.time()
+        texto = llm.consultar_llm([], "cota_curta")
+        self.assertIn("cota_curta", texto)
+        self.assertGreaterEqual(time.time() - inicio, 0.9)       # esperou o Retry-After
+        self.assertEqual(ApiFalsa.chamadas_cota_curta, 2)
+
+    def test_429_com_espera_longa_devolve_erro_na_hora(self):
+        inicio = time.time()
+        e = self.erro("cota_longa")
+        self.assertEqual((e.code, e.detalhe), ("LLM_RATE_LIMIT", "TPM excedido"))
+        self.assertLess(time.time() - inicio, 1.0)
+
+    def test_reserva_de_tokens_da_resposta(self):
+        llm.consultar_llm([], "oi")
+        self.assertEqual(ApiFalsa.recebidos[-1]["corpo"]["max_tokens"], config.LLM_MAX_TOKENS)
+        self.assertLessEqual(config.LLM_MAX_TOKENS, 800)
 
     def test_chave_invalida_e_ausente(self):
         config.LLM_API_KEY = "gsk_errada"
@@ -159,6 +186,55 @@ class TestHistoricos(unittest.TestCase):
             t.join()
         self.assertEqual(len(h.usuarios()), 8)
         self.assertTrue(all(len(h.obter(f"u{n}")) == 400 for n in range(8)))
+
+
+class TestInstrucao(unittest.TestCase):
+    """Prompt adaptado do material da Bruna (issue #3)."""
+
+    def test_base_de_luzes_so_quando_o_assunto_e_equipamento(self):
+        marca = "LOS apagada: normal"                   # trecho que só existe na base de luzes
+        self.assertNotIn(marca, llm.instrucao_sistema([], "quais os planos de vocês?"))
+        self.assertIn(marca, llm.instrucao_sistema([], "a luz LOS está vermelha"))
+        self.assertIn(marca, llm.instrucao_sistema([], "estou sem internet"))
+        hist = [{"role": "user", "content": "meu roteador está com uma luz piscando"},
+                {"role": "assistant", "content": "Qual luz?"}]
+        self.assertIn(marca, llm.instrucao_sistema(hist, "continua igual"))
+
+    def test_data_e_hora_e_provedor(self):
+        from datetime import datetime
+        texto = llm.instrucao_sistema([], "oi", momento=datetime(2026, 11, 29, 10, 30))
+        self.assertIn("domingo, 29/11/2026, 10:30", texto)
+        self.assertIn(config.BOT_PROVEDOR, texto)
+        self.assertNotIn("{", texto)                     # nenhum campo sem preencher
+
+    def test_regras_essenciais_presentes(self):
+        texto = llm.instrucao_sistema([], "oi").lower()
+        for regra in ("fibra", "reset", "sem markdown", "não acessa o sistema", "cancelamento"):
+            self.assertIn(regra, texto)
+
+    def test_cabe_no_limite_do_plano_gratuito(self):
+        """Pior caso de ENTRADA: base de luzes + histórico cheio de respostas longas + pergunta longa.
+        O plano gratuito do gpt-oss-120b permite 8 mil tokens por minuto; abaixo de 3,5 mil por
+        pergunta cabem ao menos 2 perguntas por minuto mesmo no pior caso.
+        O prompt original da Bruna sozinho já passaria de 8 mil."""
+        h = Historicos()
+        for _ in range(10):
+            h.registrar("ana", "x" * 300, "y" * 2000)        # respostas longas são cortadas no histórico
+        hist = h.obter("ana")
+        sistema = llm.instrucao_sistema(hist, "a luz LOS está vermelha")
+        entrada = (llm.estimar_tokens(sistema) + sum(llm.estimar_tokens(m["content"]) for m in hist)
+                   + llm.estimar_tokens("z" * 400))
+        self.assertLess(entrada, 3500, entrada)
+        original = (llm.PASTA_PROMPTS / "original" / "prompt_assistente_virtual_net.txt").read_text(encoding="utf-8")
+        self.assertGreater(llm.estimar_tokens(original), 8000)  # por isso foi condensado
+
+    def test_prompt_original_continua_guardado(self):
+        self.assertTrue((llm.PASTA_PROMPTS / "original" / "prompt_assistente_virtual_net.txt").is_file())
+
+    def test_negrito_de_um_asterisco_e_removido(self):
+        self.assertEqual(llm.limpar_markdown("O plano *400 Mega* custa R$ 89,90"),
+                         "O plano 400 Mega custa R$ 89,90")
+        self.assertEqual(llm.limpar_markdown("2 * 3 = 6"), "2 * 3 = 6")
 
 
 if __name__ == "__main__":

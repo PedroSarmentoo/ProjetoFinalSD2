@@ -23,6 +23,11 @@ from collections import deque
 
 from common import config
 
+# Só o começo de cada resposta do bot fica no histórico: o contexto (o que o
+# cliente disse e em que etapa está) se mantém, e cada consulta gasta menos
+# tokens do limite por minuto do Groq. O cliente sempre recebe a resposta inteira.
+MAX_CARACTERES_RESPOSTA = 600
+
 
 class Historicos:
     def __init__(self, trocas: int | None = None):
@@ -39,7 +44,7 @@ class Historicos:
         with self._lock:
             fila = self._por_usuario.setdefault(usuario.lower(), deque(maxlen=self.trocas * 2))
             fila.append({"role": "user", "content": pergunta})
-            fila.append({"role": "assistant", "content": resposta})
+            fila.append({"role": "assistant", "content": resposta[:MAX_CARACTERES_RESPOSTA]})
 
     def esquecer(self, usuario: str) -> None:
         with self._lock:

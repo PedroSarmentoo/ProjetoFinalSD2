@@ -21,42 +21,68 @@ from __future__ import annotations
 import json
 import re
 import sys
+import time
 import urllib.error
 import urllib.request
+from datetime import datetime
+from functools import lru_cache
+from pathlib import Path
 
 from common import config
 
 
 class ErroLLM(Exception):
-    def __init__(self, code: str, mensagem: str):
+    def __init__(self, code: str, mensagem: str, detalhe: str = ""):
         super().__init__(mensagem)
         self.code = code
+        self.detalhe = detalhe          # mensagem técnica da API (vai para o log do bot, não para o usuário)
 
 
-# Issue #3: instrução de comportamento. A Bruna pode trocar pelo prompt dela,
-# mantendo as regras de "texto curto" e "sem markdown" (a GUI é texto puro).
-INSTRUCAO_SISTEMA = """\
-Você é o assistente virtual de suporte técnico do provedor de internet {provedor}, \
-atendendo clientes residenciais por um chat.
+# ------------------------------------------------------------------ instrução (issue #3)
+# Baseada no prompt da Bruna (bot/prompts/original/), condensada para caber no
+# limite do plano gratuito do Groq (8 mil tokens por MINUTO no gpt-oss-120b): o
+# original tem ~9 mil tokens e estouraria o limite em uma única pergunta.
+PASTA_PROMPTS = Path(__file__).resolve().parent / "prompts"
+# Espaço reservado para a resposta. O Groq também conta essa reserva no limite por minuto,
+# então não convém exagerar: 700 cabem 5 frases + o raciocínio "low" do gpt-oss.
+_MAX_TOKENS = config.LLM_MAX_TOKENS
+ESPERA_MAXIMA_429 = 8.0     # s: se o Groq pedir para esperar até isso, o bot espera e tenta de novo
 
-Regras:
-- Responda sempre em português do Brasil, em texto simples, SEM markdown \
-(sem asteriscos, sem títulos com #, sem tabelas).
-- Seja curto: no máximo 5 frases. Para procedimentos, use passos numerados (1., 2., 3.).
-- Ajude com: internet lenta ou caindo, Wi-Fi (senha, alcance, canal), roteador e ONU \
-(reinício, luzes, reset), teste de velocidade, DNS e cabos.
-- Comece pelas soluções mais simples (reiniciar equipamentos, conferir cabos e luzes) \
-e avance conforme as respostas do cliente.
-- Você não tem acesso a contas, faturas, protocolos ou ao status da rede: nunca invente \
-esses dados. Quando precisar deles, oriente o cliente a abrir um chamado com um técnico.
-- Se a pergunta não for sobre internet ou equipamentos de rede, diga educadamente que \
-só pode ajudar com suporte técnico de internet."""
+# A base de luzes só é enviada quando a conversa fala de equipamento/luzes/sem internet.
+_ASSUNTO_LUZES = re.compile(
+    r"\b(luz|luzes|led|leds|los|pon|power|onu|roteador|modem|aparelho|piscando|vermelh\w*|"
+    r"apagad\w*|acesa|acesas|fibra|sem internet|sem conex\w*|caiu|wps|lan)\b", re.IGNORECASE)
 
-_MAX_TOKENS = 1024          # modelos de raciocínio (gpt-oss) gastam parte disto "pensando"
+_DIAS = ["segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado", "domingo"]
 
 
-def instrucao_sistema() -> str:
-    return INSTRUCAO_SISTEMA.format(provedor=config.BOT_PROVEDOR)
+@lru_cache(maxsize=None)
+def _ler(nome: str) -> str:
+    return (PASTA_PROMPTS / nome).read_text(encoding="utf-8").strip()
+
+
+def agora_texto(momento: datetime | None = None) -> str:
+    m = momento or datetime.now()
+    return f"Agora é {_DIAS[m.weekday()]}, {m:%d/%m/%Y}, {m:%H:%M}."
+
+
+def precisa_base_luzes(historico: list[dict], pergunta: str) -> bool:
+    """Pergunta atual + últimas falas do cliente mencionam luzes/equipamento?"""
+    falas = [pergunta] + [m["content"] for m in historico[-4:] if m.get("role") == "user"]
+    return any(_ASSUNTO_LUZES.search(f) for f in falas)
+
+
+def instrucao_sistema(historico: list[dict] | None = None, pergunta: str = "",
+                      momento: datetime | None = None) -> str:
+    texto = _ler("instrucao.md").format(provedor=config.BOT_PROVEDOR, agora=agora_texto(momento))
+    if precisa_base_luzes(historico or [], pergunta):
+        texto += "\n\n" + _ler("base_luzes.md")
+    return texto
+
+
+def estimar_tokens(texto: str) -> int:
+    """Estimativa simples para português (~3,5 caracteres por token)."""
+    return int(len(texto) / 3.5) + 1
 
 
 def consultar_llm(historico: list[dict], pergunta: str, timeout: float | None = None) -> str:
@@ -67,7 +93,7 @@ def consultar_llm(historico: list[dict], pergunta: str, timeout: float | None = 
 
     corpo = {
         "model": config.LLM_MODEL,
-        "messages": [{"role": "system", "content": instrucao_sistema()}]
+        "messages": [{"role": "system", "content": instrucao_sistema(historico, pergunta)}]
                     + list(historico)
                     + [{"role": "user", "content": pergunta}],
         "temperature": 0.4,
@@ -85,15 +111,17 @@ def consultar_llm(historico: list[dict], pergunta: str, timeout: float | None = 
         method="POST",
     )
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            dados = json.load(resp)
+        dados = _enviar(req, timeout)
     except urllib.error.HTTPError as e:
-        detalhe = _detalhe_do_erro(e)
+        detalhe = getattr(e, "detalhe_api", None) or _detalhe_do_erro(e)
         if e.code in (401, 403):
             raise ErroLLM("LLM_AUTH", "A chave da LLM é inválida.") from e
+        if e.code == 413:
+            raise ErroLLM("LLM_RATE_LIMIT", "A pergunta ficou grande demais para o limite da LLM.",
+                          detalhe) from e
         if e.code == 429:
             raise ErroLLM("LLM_RATE_LIMIT",
-                          "Limite de uso da LLM atingido. Tente novamente em alguns segundos.") from e
+                          "Limite de uso da LLM atingido. Tente novamente em alguns segundos.", detalhe) from e
         if e.code == 404:
             raise ErroLLM("LLM_UNAVAILABLE",
                           f"Modelo '{config.LLM_MODEL}' não encontrado na LLM ({detalhe}).") from e
@@ -117,6 +145,26 @@ def consultar_llm(historico: list[dict], pergunta: str, timeout: float | None = 
     return texto
 
 
+def _enviar(req: urllib.request.Request, timeout: float) -> dict:
+    """POST à API. Em HTTP 429 com espera curta (Retry-After), espera e tenta mais uma vez."""
+    for tentativa in (1, 2):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                return json.load(resp)
+        except urllib.error.HTTPError as e:
+            if e.code != 429 or tentativa == 2:
+                raise
+            e.detalhe_api = _detalhe_do_erro(e)
+            try:
+                espera = float(e.headers.get("retry-after", ""))
+            except (TypeError, ValueError):
+                raise e from None
+            if espera > ESPERA_MAXIMA_429:
+                raise e from None
+            time.sleep(max(espera, 0.5))
+    raise AssertionError("não alcançado")
+
+
 def limpar_markdown(texto: str) -> str:
     """Remove a formatação markdown que o modelo às vezes usa mesmo instruído
     a não usar (a interface mostra texto puro). Listas numeradas são mantidas."""
@@ -124,6 +172,7 @@ def limpar_markdown(texto: str) -> str:
     texto = re.sub(r"(?m)^\s{0,3}#{1,6}\s*", "", texto)          # títulos
     texto = re.sub(r"`([^`]*)`", r"\1", texto)                    # código inline
     texto = re.sub(r"(?m)^(\s*)[*•]\s+", r"\1- ", texto)          # marcadores * → -
+    texto = re.sub(r"(?<![\w*])\*(?=\S)([^*\n]+?)(?<=\S)\*(?![\w*])", r"\1", texto)  # *negrito* simples
     return texto.strip()
 
 
@@ -140,4 +189,4 @@ if __name__ == "__main__":
     try:
         print(consultar_llm([], pergunta))
     except ErroLLM as erro:
-        sys.exit(f"[{erro.code}] {erro}")
+        sys.exit(f"[{erro.code}] {erro}" + (f"\n  detalhe da API: {erro.detalhe}" if erro.detalhe else ""))

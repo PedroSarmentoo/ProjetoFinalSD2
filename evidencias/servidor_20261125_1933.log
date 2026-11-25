@@ -1,0 +1,41 @@
+Servidor rodando sem interface gráfica. Ctrl+C para encerrar.
+
+19:33:55 [INFO ] Servidor ouvindo em 127.0.0.1: TCP :5000 (porta 5000), TLS :5001 (porta 5001)
+19:33:56 [BOT  ] bot entrou (127.0.0.1:50251, TCP :5000)
+19:33:56 [INFO ] Sessão TLS com 127.0.0.1:50253: TLSv1.3 · TLS_AES_256_GCM_SHA384
+19:33:56 [JOIN ] ana entrou (127.0.0.1:50253, TLS :5001)
+19:33:56 [JOIN ] bruno entrou (127.0.0.1:50254, TCP :5000)
+19:33:56 [JOIN ] carla entrou (127.0.0.1:50255, TCP :5000)
+19:33:57 [MSG  ] MSG      ana -> *: @bot Meu roteador é TP-Link e a internet cai toda noite, o que pode ser?
+19:33:57 [MSG  ] MSG      bruno -> *: mensagem 1 enquanto o bot consulta a LLM
+19:33:57 [MSG  ] BOT_REQ  servidor -> bot: Meu roteador é TP-Link e a internet cai toda noite, o que pode ser?
+19:33:57 [BOT  ] ana perguntou ao bot (#3ae37374)
+19:33:57 [MSG  ] MSG      bruno -> *: mensagem 2 enquanto o bot consulta a LLM
+19:33:57 [MSG  ] MSG      bruno -> *: mensagem 3 enquanto o bot consulta a LLM
+19:33:57 [MSG  ] MSG      bruno -> *: mensagem 4 enquanto o bot consulta a LLM
+19:33:57 [MSG  ] MSG      bruno -> *: mensagem 5 enquanto o bot consulta a LLM
+19:33:58 [MSG  ] BOT_RESP bot -> ana: Oi, tudo bem? A queda acontece em todos os aparelhos ou só em algum específico? E acontece só no Wi‑Fi ou também quando usa o cabo Ethernet?
+19:33:58 [BOT  ] Bot respondeu para ana (#3ae37374) em 1.0 s
+19:33:58 [MSG  ] MSG      ana -> *: @bot Já reiniciei o roteador e continua caindo. Qual o próximo passo?
+19:33:58 [MSG  ] BOT_REQ  servidor -> bot: Já reiniciei o roteador e continua caindo. Qual o próximo passo?
+19:33:58 [BOT  ] ana perguntou ao bot (#32c2e893)
+19:33:59 [MSG  ] BOT_RESP bot -> ana: Olhe as luzes do roteador: a luz POWER, a luz PON (ou LOS) e a luz INTERNET. Me diga se alguma delas está apagada, vermelha ou piscando.
+19:33:59 [BOT  ] Bot respondeu para ana (#32c2e893) em 1.1 s
+19:33:59 [MSG  ] MSG      bruno -> *: @bot Qual é a marca do meu roteador?
+19:33:59 [MSG  ] BOT_REQ  servidor -> bot: Qual é a marca do meu roteador?
+19:33:59 [BOT  ] bruno perguntou ao bot (#1384e308)
+19:34:00 [MSG  ] BOT_RESP bot -> bruno: Não tenho essa informação. Para saber a marca do seu roteador, entre em contato com a equipe de suporte pelo WhatsApp 38 99999‑1234 ou telefone 38 3232‑1234. Eles podem orientar você com base no número de série que está na etiqueta do aparelho.
+19:34:00 [BOT  ] Bot respondeu para bruno (#1384e308) em 0.7 s
+19:34:01 [ERRO ] bot perdeu a conexão
+19:34:02 [BOT  ] bot entrou (127.0.0.1:50263, TCP :5000)
+19:34:03 [MSG  ] MSG      ana -> *: @bot Teste de falha: minha internet está lenta
+19:34:03 [MSG  ] BOT_REQ  servidor -> bot: Teste de falha: minha internet está lenta
+19:34:03 [BOT  ] ana perguntou ao bot (#eb66baa4)
+19:34:03 [MSG  ] BOT_ERR  bot -> ana: A LLM não respondeu em 0.01 s. Tente novamente.
+19:34:03 [ERRO ] Bot falhou (LLM_TIMEOUT) para ana (#eb66baa4) em 0.1 s
+19:34:03 [MSG  ] MSG      bruno -> *: o chat continua funcionando depois da falha?
+19:34:03 [MSG  ] BYE      carla -> servidor: 
+19:34:03 [LEAVE] carla saiu
+19:34:03 [ERRO ] bruno perdeu a conexão
+19:34:03 [MSG  ] BYE      ana -> servidor: 
+19:34:03 [LEAVE] ana saiu

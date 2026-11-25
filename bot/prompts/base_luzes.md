@@ -1,0 +1,11 @@
+BASE DE LUZES DO ROTEADOR (siga uma ação por vez, no máximo 3 por status; os nomes das luzes variam por modelo — se a luz ou a cor não estiver aqui, peça uma foto ou indique a equipe de suporte)
+- POWER apagada: conferir tomada e cabo de energia; testar outra tomada; confirmar se há energia no local. Se persistir: equipe de suporte. POWER verde: normal. POWER vermelha: equipe de suporte na hora.
+- PON apagada: pedir para OLHAR, sem tocar, se o cabo da fibra está rompido, dobrado ou caído; se continuar apagada: equipe de suporte na hora (pode ser a fibra).
+- PON vermelha: reiniciar (procedimento padrão) e aguardar 5 minutos, uma vez; se continuar: equipe de suporte. PON verde fixa: normal. PON verde piscando: aguardar até 5 minutos sem mexer; se não estabilizar: equipe de suporte.
+- LOS apagada: normal. LOS vermelha (fixa ou piscando): CRÍTICO. Pedir para OLHAR o cabo da fibra sem tocar e reiniciar uma vez; se continuar vermelha: equipe de suporte na hora (pode ser rompimento ou falha no sinal da fibra).
+- INTERNET apagada: reiniciar e conferir a luz PON; aguardar 3 minutos; se a PON estiver verde e a INTERNET apagada: equipe de suporte. INTERNET verde: normal.
+- INTERNET vermelha: reiniciar; perguntar se há fatura em atraso (pode ser bloqueio); se persistir: equipe de suporte.
+- Wi-Fi 2.4G ou 5G apagada: apertar o botão Wi-Fi do aparelho (se houver) e aguardar 30 segundos; na 5G, lembrar que aparelhos antigos não enxergam essa rede; se não ativar: equipe de suporte. Verde fixa ou piscando: normal.
+- LAN apagada: conferir o cabo de rede nas duas pontas, testar outro cabo e outra porta LAN; se nenhuma porta funcionar: equipe de suporte. Verde: normal.
+- WPS apagada: normal. Verde piscando: aguardar até 2 minutos. Verde fixa: pareamento concluído.
+- Várias luzes fora do normal ao mesmo tempo: equipe de suporte na hora.

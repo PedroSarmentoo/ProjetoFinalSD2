@@ -39,6 +39,7 @@ O protocolo de mensagens está em **[PROTOCOLO.md](PROTOCOLO.md)**.
 | `iniciar.py` | Abre servidor, bot e clientes, cada um em seu processo | Trio | — |
 | `bot/llm.py` | Chamada ao Groq e tratamento de falhas | Bruna | #3, #15 |
 | `bot/historico.py` | Histórico curto por usuário | Bruna | #16 |
+| `bot/prompts/` | Instrução do bot (Virtual Net, a partir do prompt da Bruna) e base de luzes do roteador | Bruna | #3 |
 | `certs/gerar_certificados.py` | CA de teste + certificado do servidor | Fellipe | #18 |
 | `evidencias/` | Prints, logs e capturas do Wireshark | Trio | #30 |
 | `docs/` | Relatório e material de apoio | Trio | #23 |

@@ -1,0 +1,49 @@
+VALIDAÇÃO DO PROJETO — 25/11/2026 19:33:27
+
+========================================================================
+1. AMBIENTE
+========================================================================
+  Python 3.14.5 (C:\Users\pedro\AppData\Local\Programs\Python\Python314\python.exe) — Windows-11-10.0.26300-SP0
+  [OK] Python 3.10 ou superior
+  [OK] tkinter disponível (Tk 8.6)
+  [OK] .env encontrado: C:\Users\pedro\Documents\GitHub\ProjetoFinalSD2\.env
+  [OK] LLM_API_KEY presente (gsk_…vGI9) · modelo openai/gpt-oss-120b
+  [OK] cryptography 50.0.2
+
+========================================================================
+2. CERTIFICADOS TLS
+========================================================================
+  [OK] certs/ca.crt, servidor.crt e servidor.key
+  [OK] contextos TLS carregam (servidor e cliente com validação estrita)
+
+========================================================================
+3. TESTES AUTOMÁTICOS (python -m unittest discover -s tests)
+========================================================================
+  Ran 102 tests in 26.184s
+  OK
+  [OK] todos os testes passaram (27.0 s)
+
+========================================================================
+4. CENÁRIO REAL (processos separados + Groq de verdade)
+========================================================================
+  [OK] ana conectada por TLS :5001; bruno e carla por TCP
+  [OK] 5 mensagens bruno→carla entregues DURANTE a consulta (média 3 ms cada)
+  [OK] bot respondeu à ana em 1.0 s com o mesmo ref
+  [OK] pergunta de continuação respondida
+  [OK] contexto do bruno separado (o bot não sabe a marca do roteador da ana)
+  [OK] respostas do bot chegaram só a quem perguntou
+  [OK] falha da LLM vira BOT_ERR LLM_TIMEOUT e o sistema continua
+  [OK] chat continua funcionando depois da falha
+  [OK] saída normal avisada (LEFT)
+  [OK] queda abrupta detectada (CONNECTION_LOST)
+
+  Linha do tempo salva em evidencias\concorrencia_20261125_1933.txt
+  Log do servidor salvo em evidencias\servidor_20261125_1933.log
+
+========================================================================
+RESUMO
+========================================================================
+  [OK] ambiente
+  [OK] certificados TLS
+  [OK] testes automáticos
+  [OK] cenário real

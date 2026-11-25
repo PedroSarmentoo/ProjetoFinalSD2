@@ -1,0 +1,24 @@
+Linha do tempo do cenário real — 25/11/2026 19:34
+Processos separados: servidor, bot (Groq) e 3 clientes (ana TLS, bruno e carla TCP)
+
+   tempo  quem     evento
+   1.54s  sistema  servidor (PID 26824) e bot (PID 24364) iniciados
+   1.61s  ana      conectou por TLS :5001 (TLSv1.3 · TLS_AES_256_GCM_SHA384)
+   1.62s  bruno    conectou por TCP :5000
+   1.63s  carla    conectou por TCP :5000
+   2.13s  ana      @bot Meu roteador é TP-Link e a internet cai toda noite, o que pode ser?  [#3ae373]
+   2.14s  carla    recebeu de bruno: mensagem 1 enquanto o bot consulta a LLM (9 ms)
+   2.15s  carla    recebeu de bruno: mensagem 2 enquanto o bot consulta a LLM (2 ms)
+   2.15s  carla    recebeu de bruno: mensagem 3 enquanto o bot consulta a LLM (2 ms)
+   2.15s  carla    recebeu de bruno: mensagem 4 enquanto o bot consulta a LLM (1 ms)
+   2.15s  carla    recebeu de bruno: mensagem 5 enquanto o bot consulta a LLM (1 ms)
+   3.14s  ana      BOT_RESP #3ae373: Oi, tudo bem? A queda acontece em todos os aparelhos ou só em algum específico? E acontece só no Wi‑Fi ou também quando usa o cabo Ethernet?
+   3.14s  ana      @bot (continuação) Já reiniciei o roteador e continua caindo…  [#32c2e8]
+   4.26s  ana      BOT_RESP #32c2e8: Olhe as luzes do roteador: a luz POWER, a luz PON (ou LOS) e a luz INTERNET. Me diga se alguma delas está apagada, vermelha ou piscando.
+   4.26s  bruno    @bot Qual é a marca do meu roteador?  [#1384e3]
+   4.98s  bruno    BOT_RESP #1384e3: Não tenho essa informação. Para saber a marca do seu roteador, entre em contato com a equipe de suporte pelo WhatsApp 38 99999‑1234 ou telef
+   8.11s  sistema  bot reiniciado com --simular-falha timeout
+   8.11s  ana      @bot Teste de falha…  [#eb66ba]
+   8.24s  ana      BOT_ERR [LLM_TIMEOUT] A LLM não respondeu em 0.01 s. Tente novamente.
+   8.24s  carla    saiu (BYE)
+   8.25s  bruno    conexão derrubada sem BYE

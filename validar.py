@@ -204,7 +204,7 @@ def cenario_real(tls_ok: bool) -> bool:
                                  f"ana conectada por {ana.rede.canal}; bruno e carla por TCP"))
 
             # --- concorrência: conversa continua durante a consulta à LLM
-            pergunta = "Minha internet cai toda noite por volta das 22h, o que pode ser?"
+            pergunta = "Meu roteador é TP-Link e a internet cai toda noite, o que pode ser?"
             id1 = ana.rede.perguntar_bot(pergunta)
             ana.marca(f"@bot {pergunta}  [#{id1[:6]}]")
             entregas = []
@@ -235,14 +235,14 @@ def cenario_real(tls_ok: bool) -> bool:
                 ana.marca(f"{resp2['type']} #{id2[:6]}: {resp2['content'][:140]}")
             resultados.append(ok(resp2 is not None and resp2["type"] == "BOT_RESP", "pergunta de continuação respondida"))
 
-            id3 = bruno.rede.perguntar_bot("Qual problema eu relatei antes e em que horário?")
-            bruno.marca(f"@bot Qual problema eu relatei antes e em que horário?  [#{id3[:6]}]")
+            id3 = bruno.rede.perguntar_bot("Qual é a marca do meu roteador?")
+            bruno.marca(f"@bot Qual é a marca do meu roteador?  [#{id3[:6]}]")
             resp3 = bruno.esperar(lambda e: e["type"] in ("BOT_RESP", "BOT_ERR") and e.get("ref") == id3, 45)
             if resp3:
                 bruno.marca(f"{resp3['type']} #{id3[:6]}: {resp3['content'][:140]}")
-            vazou = resp3 is not None and "22" in resp3["content"]
+            vazou = resp3 is not None and "tp-link" in resp3["content"].lower()
             resultados.append(ok(resp3 is not None and not vazou,
-                                 "contexto do bruno separado (o bot não conhece o problema da ana)"))
+                                 "contexto do bruno separado (o bot não sabe a marca do roteador da ana)"))
             nao_recebeu = carla.esperar(lambda e: e["type"] in ("BOT_RESP", "BOT_ERR"), 1)
             resultados.append(ok(nao_recebeu is None, "respostas do bot chegaram só a quem perguntou"))
 
