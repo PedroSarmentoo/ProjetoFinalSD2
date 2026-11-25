@@ -1,0 +1,21 @@
+# Credenciais e configuração local — NUNCA versionar
+.env
+*.key
+*.pem
+
+# Certificados gerados localmente (cada um gera os seus com certs/gerar_certificados.py)
+certs/*.crt
+certs/*.srl
+certs/*.csr
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Editores / sistema
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
