@@ -1,20 +1,34 @@
 """Ponto de entrada:
 
-    python -m servidor            # com interface gráfica (issue #13)
-    python -m servidor --sem-gui  # só terminal: mostra os eventos no console
+    python -m servidor                      # com interface gráfica (issue #13)
+    python -m servidor --sem-gui            # só terminal: mostra os eventos no console
+    python -m servidor --certificado-falso  # TLS com certificado de OUTRA CA (teste negativo #21)
 """
 
 import queue
 import sys
 import time
 
-from common import eventos
+from common import config, eventos
 from servidor.nucleo import ServidorChat
+
+
+def criar_servidor(fila: queue.Queue) -> ServidorChat:
+    contexto = None
+    if "--certificado-falso" in sys.argv:
+        from common import tls
+        falsos = config.PASTA_CERTS / "falsos"
+        try:
+            contexto = tls.contexto_servidor(falsos / "servidor.crt", falsos / "servidor.key")
+        except FileNotFoundError:
+            sys.exit("Gere antes:  python certs/gerar_certificados.py --falsos")
+        print("ATENÇÃO: servidor usando certificado FALSO (outra CA) na porta TLS — clientes devem recusar.")
+    return ServidorChat(fila, contexto_tls=contexto)
 
 
 def modo_terminal() -> None:
     fila = queue.Queue()
-    servidor = ServidorChat(fila)
+    servidor = criar_servidor(fila)
     try:
         servidor.iniciar()
     except OSError as e:
@@ -41,7 +55,7 @@ def modo_gui() -> None:
     from servidor.gui import JanelaServidor
 
     fila = queue.Queue()
-    servidor = ServidorChat(fila)
+    servidor = criar_servidor(fila)
     root = tk.Tk()
     janela = JanelaServidor(root, fila, servidor.expulsar)
     try:

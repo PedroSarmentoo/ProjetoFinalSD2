@@ -35,7 +35,7 @@ class ErroBot(Exception):
 class BotRede:
     def __init__(self, host: str = config.HOST, porta: int | None = None,
                  usar_tls: bool = False, max_threads: int = 4,
-                 consultar=None, historicos: Historicos | None = None, log=print):
+                 consultar=None, historicos: Historicos | None = None, log=print, cafile=None):
         self.host = host
         self.usar_tls = usar_tls
         self.porta = porta or (config.PORTA_TLS if usar_tls else config.PORTA)
@@ -43,6 +43,7 @@ class BotRede:
         self.consultar = consultar or llm.consultar_llm     # trocável nos testes
         self.historicos = historicos or Historicos()
         self.log = log
+        self.cafile = cafile
         self._sock: socket.socket | None = None
         self._lock_envio = threading.Lock()
         self._rodando = False
@@ -57,7 +58,8 @@ class BotRede:
         if self.usar_tls:
             try:
                 from common import tls
-                sock = tls.contexto_cliente().wrap_socket(sock, server_hostname=self.host)
+                contexto = tls.contexto_cliente(self.cafile) if self.cafile else tls.contexto_cliente()
+                sock = contexto.wrap_socket(sock, server_hostname=self.host)
             except NotImplementedError as e:
                 sock.close()
                 raise ErroBot("TLS ainda não está disponível (issue #19).") from e

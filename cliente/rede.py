@@ -41,6 +41,7 @@ class ClienteRede:
         self.fila = fila
         self.nome: str | None = None
         self.canal: str | None = None            # "TCP :5000" | "TLS :5001"
+        self.sessao_tls: str | None = None       # ex.: "TLSv1.3 · TLS_AES_256_GCM_SHA384"
         self._sock: socket.socket | None = None
         self._lock_envio = threading.Lock()
         self._conectado = False
@@ -52,13 +53,13 @@ class ClienteRede:
 
     # ================================================================ conexão
     def conectar(self, nome: str, host: str = config.HOST, porta: int | None = None,
-                 usar_tls: bool = False) -> None:
+                 usar_tls: bool = False, cafile=None) -> None:
         """Conecta, faz o HELLO e só retorna depois do WELCOME. Sem `porta`,
         usa 5001 com TLS e 5000 sem."""
         if self._conectado:
             raise ErroConexao("Já conectado.")
         porta = porta or (config.PORTA_TLS if usar_tls else config.PORTA)
-        sock = self._abrir_socket(host, porta, usar_tls)
+        sock = self._abrir_socket(host, porta, usar_tls, cafile)
         leitor = p.LeitorDeMensagens(sock)
         try:
             p.enviar(sock, p.novo_envelope(p.HELLO, nome, p.NOME_SERVIDOR, "", role="human"))
@@ -83,12 +84,15 @@ class ClienteRede:
         sock.settimeout(None)
         self._sock, self.nome = sock, resposta["to"]
         self.canal = f"{'TLS' if usar_tls else 'TCP'} :{porta}"
+        if usar_tls:
+            from common.tls import descrever
+            self.sessao_tls = descrever(sock)
         self._conectado, self._motivo_saida = True, None
         self.fila.put(eventos.EnvelopeRecebido(resposta))
         threading.Thread(target=self._receber, args=(leitor,), name=f"recepcao-{nome}",
                          daemon=True).start()
 
-    def _abrir_socket(self, host: str, porta: int, usar_tls: bool) -> socket.socket:
+    def _abrir_socket(self, host: str, porta: int, usar_tls: bool, cafile=None) -> socket.socket:
         try:
             sock = socket.create_connection((host, porta), timeout=TIMEOUT_CONEXAO)
         except OSError as e:
@@ -98,12 +102,15 @@ class ClienteRede:
             return sock
         try:
             from common import tls
-            contexto = tls.contexto_cliente()
+            contexto = tls.contexto_cliente(cafile) if cafile else tls.contexto_cliente()
             # server_hostname: o certificado é conferido contra este nome/IP (check_hostname).
             return contexto.wrap_socket(sock, server_hostname=host)
         except NotImplementedError as e:
             sock.close()
             raise ErroConexao("TLS ainda não está disponível neste projeto (issue #19).") from e
+        except FileNotFoundError as e:
+            sock.close()
+            raise ErroConexao(f"Certificado da CA não encontrado: {e}") from e
         except ssl.SSLCertVerificationError as e:
             sock.close()
             raise ErroConexao(f"Certificado do servidor RECUSADO: {e.verify_message}. "

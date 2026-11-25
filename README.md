@@ -30,6 +30,7 @@ O protocolo de mensagens está em **[PROTOCOLO.md](PROTOCOLO.md)**.
 | `tests/` | Testes automatizados (`unittest`) | Trio | #4, #12 |
 | `common/eventos.py` | Contrato rede → interfaces (fila) | Pedro + Bruna | #9 |
 | `common/tls.py` | Contextos TLS com validação do certificado | Fellipe | #19, #20 |
+| `docs/criptografia.md` | Mecanismo, validação, enlaces protegidos, teste negativo e roteiro do Wireshark | Fellipe | #19–#22 |
 | `servidor/nucleo.py` | Aceitação, threads, locks, roteamento, desconexões | Pedro | #5–#9 |
 | `servidor/gui.py` | Interface do servidor | Bruna | #13 |
 | `cliente/rede.py` | Rede do cliente (thread de recepção) | Pedro | #10 |
@@ -51,14 +52,16 @@ com o número da issue.
 Requer **Python 3.10+** com `tkinter` (já vem no instalador do Windows). Sem dependências externas.
 
 1. Copie `.env.example` para `.env` (na raiz) e coloque a chave do Groq em `LLM_API_KEY`.
-2. Gere os certificados (uma vez): `python certs/gerar_certificados.py` *(issue #18)*
+2. Gere os certificados do TLS (uma vez): `pip install cryptography` e depois
+   `python certs/gerar_certificados.py`. Sem certificados o servidor sobe só na porta 5000.
 
 **Tudo de uma vez** — cada componente abre em um processo separado:
 
 ```bash
 python iniciar.py                 # servidor (GUI) + bot + ana, bruno e carla
 python iniciar.py ana bruno       # escolhe os clientes
-python iniciar.py --tls           # clientes pela porta TLS (5001)
+python iniciar.py --tls           # clientes e bot pela porta TLS (5001)
+python iniciar.py --tls-para ana  # só a ana com TLS (compara os dois canais na GUI)
 python iniciar.py --sem-bot       # sem o bot
 ```
 
@@ -90,6 +93,7 @@ python -m unittest discover -s tests -v
 | `tests/test_bot_llm.py` | Chamada à LLM com API falsa (instrução, histórico, 401/429/404, tempo limite, sem rede, markdown) e histórico por usuário (#15, #16) |
 | `tests/test_cliente.py` | Rede do cliente contra o servidor real: conexão, nome recusado, servidor fora do ar, sala/privado, `@bot` com `ref`, envio sem bloquear durante a consulta, saída, expulsão e queda (#10) |
 | `tests/test_bot_rede.py` | Bot real com LLM substituída: `ref` e usuário corretos, histórico por usuário, consultas em paralelo, falha da LLM vira `BOT_ERR`, erro inesperado não derruba o bot (#11) |
+| `tests/test_tls.py` | TLS com CA de teste: canal TLS junto com TCP, bot por TLS, recusa de certificado de outra CA e de nome errado, bytes capturados (legível na 5000, cifrado na 5001) (#18–#21) |
 
 ## Como trabalhamos
 

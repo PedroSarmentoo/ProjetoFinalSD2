@@ -223,6 +223,8 @@ class ServidorChat:
             try:
                 sock.settimeout(self.timeout_hello)
                 sock = self.contexto_tls.wrap_socket(sock, server_side=True)
+                from common.tls import descrever
+                self._evento("info", f"Sessão TLS com {endereco}: {descrever(sock)}")
             except (ssl.SSLError, OSError) as e:
                 self._evento("erro", f"Handshake TLS recusado de {endereco}: {e}")
                 try:

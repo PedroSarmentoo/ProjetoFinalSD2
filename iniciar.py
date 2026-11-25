@@ -2,7 +2,8 @@
 
     python iniciar.py                     # servidor (GUI) + bot + ana, bruno e carla
     python iniciar.py ana bruno           # escolhe os clientes
-    python iniciar.py --tls               # clientes entram pela porta TLS (5001)
+    python iniciar.py --tls               # clientes E bot entram pela porta TLS (5001)
+    python iniciar.py --tls-para ana      # só a ana usa TLS (bom para comparar canais na GUI)
     python iniciar.py --sem-bot           # sem o bot
     python iniciar.py --sem-gui-servidor  # servidor só no terminal
 
@@ -40,10 +41,14 @@ def porta_aberta(porta: int) -> bool:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Inicia servidor, bot e clientes do chat SD2")
     parser.add_argument("clientes", nargs="*", default=["ana", "bruno", "carla"])
-    parser.add_argument("--tls", action="store_true", help="clientes usam a porta TLS")
+    parser.add_argument("--tls", action="store_true", help="clientes e bot usam a porta TLS")
+    parser.add_argument("--tls-para", default="", help="nomes separados por vírgula que usam TLS")
     parser.add_argument("--sem-bot", action="store_true")
     parser.add_argument("--sem-gui-servidor", action="store_true")
     opcoes = parser.parse_args()
+    com_tls = {n.strip().lower() for n in opcoes.tls_para.split(",") if n.strip()}
+    if (opcoes.tls or com_tls) and not config.CERT_CA.is_file():
+        sys.exit("TLS pedido, mas os certificados não existem. Rode antes:  python certs/gerar_certificados.py")
 
     processos: list[tuple[str, subprocess.Popen]] = []
 
@@ -67,13 +72,14 @@ def main() -> None:
         time.sleep(0.2)
 
     if not opcoes.sem_bot:
-        abrir("bot", "-m", "bot", console_proprio=True)
+        abrir("bot", "-m", "bot", *(["--tls"] if opcoes.tls else []), console_proprio=True)
         time.sleep(0.8)                         # o bot entra antes dos humanos
 
     n = len(opcoes.clientes)
     for i, nome in enumerate(opcoes.clientes):
-        abrir(f"cliente {nome}", "-m", "cliente", nome, "--conectar", "--posicao", f"{i}/{n}",
-              *(["--tls"] if opcoes.tls else []))
+        tls = opcoes.tls or nome.lower() in com_tls
+        abrir(f"cliente {nome}" + (" (TLS)" if tls else ""), "-m", "cliente", nome, "--conectar",
+              "--posicao", f"{i}/{n}", *(["--tls"] if tls else []))
 
     print("\nTudo aberto. Feche a janela do servidor ou aperte Ctrl+C aqui para encerrar.")
     try:

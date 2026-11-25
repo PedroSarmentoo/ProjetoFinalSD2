@@ -7,6 +7,7 @@
 certs/*.crt
 certs/*.srl
 certs/*.csr
+certs/falsos/
 
 # Python
 __pycache__/

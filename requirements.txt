@@ -1,3 +1,5 @@
-# Nenhuma dependência externa: o projeto usa só a biblioteca padrão do Python
+# O chat usa só a biblioteca padrão do Python 3.10+
 # (socket, threading, queue, json, ssl, tkinter, urllib).
-# Python 3.10 ou superior.
+#
+# Apenas para GERAR os certificados de teste (certs/gerar_certificados.py):
+cryptography>=41

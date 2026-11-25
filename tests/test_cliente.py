@@ -101,10 +101,11 @@ class TestClienteRede(unittest.TestCase):
             ClienteRede(queue.Queue()).conectar("ana", porta=self.porta)
         self.assertIn("servidor está rodando", str(ctx.exception))
 
-    def test_tls_indisponivel(self):
+    def test_tls_sem_certificado_da_ca(self):
         with self.assertRaises(ErroConexao) as ctx:
-            ClienteRede(queue.Queue()).conectar("ana", porta=self.porta, usar_tls=True)
-        self.assertIn("TLS", str(ctx.exception))
+            ClienteRede(queue.Queue()).conectar("ana", porta=self.porta, usar_tls=True,
+                                                cafile="pasta_que_nao_existe/ca.crt")
+        self.assertIn("não encontrado", str(ctx.exception))
 
     def test_sala_e_privada(self):
         ana, _ = self.novo("ana")

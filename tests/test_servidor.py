@@ -254,9 +254,13 @@ class TestEventosParaGui(BaseServidor):
             self.assertIn(esperado, tipos)
 
     def test_tls_indisponivel_nao_derruba_o_servidor(self):
+        from unittest import mock
         fila = queue.Queue()
-        s = ServidorChat(fila, porta=0, porta_tls=0)     # common/tls.py ainda é stub (#19)
-        s.iniciar()
+        s = ServidorChat(fila, porta=0, porta_tls=0)
+        sem_certificado = mock.patch("common.tls.contexto_servidor",
+                                     side_effect=FileNotFoundError("servidor.crt não encontrado"))
+        with sem_certificado:                            # simula certificados ainda não gerados
+            s.iniciar()
         try:
             self.assertEqual(len(s.portas_abertas), 1)
             textos = []

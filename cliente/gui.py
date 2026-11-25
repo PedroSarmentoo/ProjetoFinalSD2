@@ -126,7 +126,8 @@ class JanelaCliente:
         self.root.title(f"Chat SD2 — {self.rede.nome}")
         self.lbl_nome.configure(text=self.rede.nome)
         cifrado = self.rede.canal.startswith("TLS")
-        self.selo_canal.configure(text=f"● {self.rede.canal} — {'cifrado' if cifrado else 'sem criptografia'}",
+        detalhe = f"cifrado ({self.rede.sessao_tls})" if cifrado else "sem criptografia"
+        self.selo_canal.configure(text=f"● {self.rede.canal} — {detalhe}",
                                   fg=CORES["ok"] if cifrado else CORES["aviso"])
         self._limpar_chat()
         self.pendentes.clear()
